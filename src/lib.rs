@@ -8,11 +8,18 @@ mod data_processor;
 mod files;
 mod logs;
 
-pub fn execute(csv_file: Option<&str>) -> Result<(), std::io::Error> {
+pub fn execute(
+    csv_file: Option<&str>,
+    dir_path: Option<&str>,
+    delete: bool,
+) -> Result<(), std::io::Error> {
     let config_file = FileBuilder::new(".").add_data("config.txt").build();
     let output = format!("{}/{}", config_file.data(), "result.txt");
 
-    let dir_path = "archivos";
+    let dir_path = match dir_path {
+        Some(dir) => dir,
+        None => "archivos",
+    };
 
     match csv_file {
         Some(csv) => {
@@ -21,40 +28,79 @@ pub fn execute(csv_file: Option<&str>) -> Result<(), std::io::Error> {
             let mut data_lines = file.data().lines();
 
             let columns = &data_lines.next().unwrap().replace("\"", "");
+
+
             let parser = CsvParserBuilder::new()
-                .set_columns(&columns)
+                .set_columns(&columns)?
                 .data(data_lines.collect())
                 .build();
 
             let parsed = parser.parse();
-            write_to(&*parsed, &output)?;
-            return Ok(())
+            match write_to(&*parsed, &output) {
+                Ok(()) => (),
+                Err(err) => output_error(
+                    err,
+                    &format!("Problema al escribir el archivo en:{}", output),
+                ),
+            };
+            match write_to(&*parsed, "./bk.txt") {
+                Ok(()) => (),
+                Err(err) => output_error(
+                    err,
+                    &format!("Problema al escribir el archivo en:{}", output),
+                ),
+            };
+
+            
+            if delete {
+                file.delete_file().unwrap();
+            }
+            return Ok(());
         }
         None => {
-                let files = match file_finder(dir_path) {
-                    Ok(value) => value,
-                    Err(err) => {
-                        output_error(err, &format!("Direccion de la carpeta:{}", dir_path));
-                        panic!("Falla en encontrar la carpeta");
-                    }
-                };
-            
-                for file_name in files.iter() {
-                    let file = FileBuilder::new(dir_path).add_data(&file_name).build();
-            
-                    let mut data_lines = file.data().lines();
-            
-                    let columns = &data_lines.next().unwrap().replace("\"", "");
-                    let parser = CsvParserBuilder::new()
-                        .set_columns(&columns)
-                        .data(data_lines.collect())
-                        .build();
-            
-                    let parsed = parser.parse();
-                    write_to(&*parsed, &output)?
+            let files = match file_finder(dir_path) {
+                Ok(value) => value,
+                Err(err) => {
+                    output_error(err, &format!("Direccion de la carpeta:{}", dir_path));
+                    panic!("Falla en encontrar la carpeta");
                 }
-            
-                return Ok(())
+            };
+
+            for file_name in files.iter() {
+                let file = FileBuilder::new(dir_path).add_data(&file_name).build();
+
+                let mut data_lines = file.data().lines();
+
+                let columns = &data_lines.next().unwrap().replace("\"", "");
+
+                let parser = CsvParserBuilder::new()
+                    .set_columns(&columns)?
+                    .data(data_lines.collect())
+                    .build();
+
+                let parsed = parser.parse();
+
+                match write_to(&*parsed, &output) {
+                    Ok(()) => (),
+                    Err(err) => output_error(
+                        err,
+                        &format!("Problema al escribir el archivo en:{}", output),
+                    ),
+                }
+                match write_to(&*parsed, "./bk.txt") {
+                    Ok(()) => (),
+                    Err(err) => output_error(
+                        err,
+                        &format!("Problema al escribir el archivo en:{}", output),
+                    ),
+                }
+
+                if delete {
+                    file.delete_file().unwrap();
+                }
+            }
+
+            return Ok(());
         }
     }
 }
@@ -83,4 +129,19 @@ fn write_to<'a>(data: impl Into<&'a str>, path: &str) -> Result<(), std::io::Err
         .open(path)
         .unwrap();
     writeln!(file, "{}", data)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::execute;
+
+    #[test]
+    fn parsear() {
+        execute(
+            Some("Reportes_Checks (3) - copia.csv"),
+            Some("C:/Users/franco luna/Downloads"),
+            true,
+        )
+        .unwrap()
+    }
 }

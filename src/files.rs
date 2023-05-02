@@ -28,6 +28,7 @@ impl<'a> FileBuilder<'a> {
     pub fn build(self) -> File {
         File {
             data: self.data.unwrap_or_else(|| "".into()),
+            full_dir: format!("{}\\{}",self.file_dir,self.file_name.unwrap_or(""))
         }
     }
 }
@@ -45,11 +46,16 @@ fn read_data(complete_path: &str) -> String {
 
 pub struct File {
     data: String,
+    full_dir: String
 }
 
 impl File {
     pub fn data(&self) -> &str {
         &self.data
+    }
+
+    pub fn delete_file(self) -> Result<(), std::io::Error> {
+        fs::remove_file(self.full_dir)
     }
 
 }

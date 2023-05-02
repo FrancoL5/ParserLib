@@ -1,7 +1,7 @@
 use std::ops::Deref;
 
 pub struct CsvParserBuilder<'a> {
-    columns: Vec<&'a str>,
+    columns: Vec<String>,
     data: Vec<&'a str>,
 }
 
@@ -18,9 +18,34 @@ impl<'a> CsvParserBuilder<'a> {
         self
     }
 
-    pub fn set_columns(mut self, data: &'a str) -> Self {
-        self.columns = data.split(",").collect();
-        self
+    pub fn set_columns(mut self, data: &'a str) -> Result<Self, std::io::Error> {
+        let must_have = [
+            "Área",
+            "National ID",
+            "Número interno",
+            "Colaborador",
+            "Fecha",
+            "Horario",
+            "Tipo",
+            "Sucursal / HO",
+        ]
+        .iter();
+
+        let columns: Vec<String> = data
+            .split(",").map(|column| column.replace("\u{feff}", ""))
+            .collect();
+
+
+        for value in must_have {
+            if !columns.contains(&value.to_string()) {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "cantidad de columnas o nombres invalidos",
+                ));
+            }
+        }
+        self.columns = columns;
+        Ok(self)
     }
 
     pub fn build(self) -> CsvParser<'a> {
@@ -32,7 +57,7 @@ impl<'a> CsvParserBuilder<'a> {
 }
 
 pub struct CsvParser<'a> {
-    pub columns: Vec<&'a str>,
+    pub columns: Vec<String>,
     pub data: Vec<&'a str>,
 }
 
@@ -41,6 +66,7 @@ impl<'a> CsvParser<'a> {
         let mut parsed: Vec<String> = Vec::with_capacity(self.data.capacity());
 
         'linea: for lineas in self.data.iter() {
+            
             let temporary = lineas.replace("\"", "");
             let lineas_aux: Vec<&str> = temporary.split(",").collect();
             let mut aux = vec![];
