@@ -26,9 +26,8 @@ pub fn execute(
             let file = FileBuilder::new(dir_path).add_data(csv).build();
 
             let mut data_lines = file.data().lines();
-            
-            let columns = &data_lines.next().unwrap().replace("\"", "");
 
+            let columns = &data_lines.next().unwrap().replace("\"", "");
 
             let parser = CsvParserBuilder::new()
                 .set_columns(&columns)?
@@ -43,7 +42,7 @@ pub fn execute(
                     &format!("Problema al escribir el archivo en:{}", output),
                 ),
             };
-            match write_to(&*parsed, "./bk.txt",true) {
+            match write_to(&*create_backup(&*parsed), "./bk.txt", true) {
                 Ok(()) => (),
                 Err(err) => output_error(
                     err,
@@ -51,7 +50,6 @@ pub fn execute(
                 ),
             };
 
-            
             if delete {
                 file.delete_file().unwrap();
             }
@@ -87,7 +85,7 @@ pub fn execute(
                         &format!("Problema al escribir el archivo en:{}", output),
                     ),
                 }
-                match write_to(&*parsed, "./bk.txt", true) {
+                match write_to(&*create_backup(&*parsed), "./bk.txt", true) {
                     Ok(()) => (),
                     Err(err) => output_error(
                         err,
@@ -118,6 +116,13 @@ pub fn file_finder(dir_path: &str) -> Result<Vec<String>, std::io::Error> {
         }
     }
     Ok(result)
+}
+fn create_backup<'a>(data: impl Into<&'a str>) -> String {
+    format!(
+        "--Fecha de parseo {} --\n{}",
+        chrono::Local::now(),
+        data.into()
+    )
 }
 
 fn write_to<'a>(data: impl Into<&'a str>, path: &str, append: bool) -> Result<(), std::io::Error> {
