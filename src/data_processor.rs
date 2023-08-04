@@ -1,5 +1,5 @@
+use chrono::{Months, NaiveDate};
 use std::ops::Deref;
-
 pub struct CsvParserBuilder<'a> {
     columns: Vec<String>,
     data: Vec<&'a str>,
@@ -32,9 +32,9 @@ impl<'a> CsvParserBuilder<'a> {
         .iter();
 
         let columns: Vec<String> = data
-            .split(",").map(|column| column.replace("\u{feff}", ""))
+            .split(",")
+            .map(|column| column.replace("\u{feff}", ""))
             .collect();
-
 
         for value in must_have {
             if !columns.contains(&value.to_string()) {
@@ -64,9 +64,10 @@ pub struct CsvParser<'a> {
 impl<'a> CsvParser<'a> {
     pub fn parse(&self) -> String {
         let mut parsed: Vec<String> = Vec::with_capacity(self.data.capacity());
+        let now = chrono::Utc::now();
+        let last_month = now.date_naive().checked_sub_months(Months::new(1)).unwrap();
 
         'linea: for lineas in self.data.iter() {
-            
             let temporary = lineas.replace("\"", "");
             let lineas_aux: Vec<&str> = temporary.split(",").collect();
             let mut aux = vec![];
@@ -79,7 +80,21 @@ impl<'a> CsvParser<'a> {
                         }
                         aux.push(lineas_aux[index].to_owned())
                     }
-                    "Fecha" => aux.push(lineas_aux[index].replace("-", "/").to_owned()),
+                    "Fecha" => {
+                        if let Ok(month_to_parse) =
+                            NaiveDate::parse_from_str(lineas_aux[index], "%d-%m-%Y")
+                        {
+                            let dias_desde_lastmonth = (month_to_parse - last_month).num_days();
+                            if dias_desde_lastmonth < 31 && dias_desde_lastmonth > 0 {
+                                aux.push(lineas_aux[index].replace("-", "/").to_owned());
+                            }else{
+                                
+                                continue 'linea;
+                            }
+                        }else{
+                            continue 'linea;
+                        }
+                    }
                     "Horario" => aux.push(lineas_aux[index].to_owned()),
                     "Tipo" => {
                         let mut tipo = lineas_aux[index].to_owned();
