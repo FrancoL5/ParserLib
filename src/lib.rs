@@ -12,6 +12,7 @@ pub fn execute(
     csv_file: Option<&str>,
     dir_path: Option<&str>,
     delete: bool,
+    date_limit:bool
 ) -> Result<(), std::io::Error> {
     let config_file = FileBuilder::new(".").add_data("config.txt").build();
     let output = format!("{}/{}", config_file.data(), "result.txt");
@@ -34,7 +35,7 @@ pub fn execute(
                 .data(data_lines.collect())
                 .build();
 
-            let parsed = parser.parse();
+            let parsed = parser.parse(date_limit);
             match write_to(&*parsed, &output, false) {
                 Ok(()) => (),
                 Err(err) => output_error(
@@ -76,7 +77,7 @@ pub fn execute(
                     .data(data_lines.collect())
                     .build();
 
-                let parsed = parser.parse();
+                let parsed = parser.parse(date_limit);
 
                 match write_to(&*parsed, &output, false) {
                     Ok(()) => (),
@@ -130,6 +131,7 @@ fn write_to<'a>(data: impl Into<&'a str>, path: &str, append: bool) -> Result<()
     let mut file = OpenOptions::new()
         .write(true)
         .append(append)
+        .truncate(!append)
         .create(true)
         .open(path)
         .unwrap();
@@ -141,11 +143,22 @@ mod tests {
     use crate::execute;
 
     #[test]
-    fn parsear() {
+    fn parsear_limite() {
         execute(
             Some("Reportes_Checks (3) - copia.csv"),
             Some("C:/Users/franco luna/Downloads"),
             true,
+            true
+        )
+        .unwrap()
+    }
+    #[test]
+    fn parsear_sin_limite() {
+        execute(
+            Some("Reportes_Checks (4).csv"),
+            Some("C:/Users/franco luna/Downloads"),
+            true,
+            false
         )
         .unwrap()
     }
