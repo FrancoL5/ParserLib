@@ -1,5 +1,6 @@
-use std::fs::{ self};
-
+use std::fmt::Display;
+use std::fs::{self, OpenOptions};
+use std::io::Write;
 
 use crate::logs::output_error;
 pub struct FileBuilder<'a> {
@@ -28,7 +29,7 @@ impl<'a> FileBuilder<'a> {
     pub fn build(self) -> File {
         File {
             data: self.data.unwrap_or_else(|| "".into()),
-            full_dir: format!("{}\\{}",self.file_dir,self.file_name.unwrap_or(""))
+            full_dir: format!("{}\\{}", self.file_dir, self.file_name.unwrap_or("")),
         }
     }
 }
@@ -46,7 +47,7 @@ fn read_data(complete_path: &str) -> String {
 
 pub struct File {
     data: String,
-    full_dir: String
+    full_dir: String,
 }
 
 impl File {
@@ -58,4 +59,29 @@ impl File {
         fs::remove_file(self.full_dir)
     }
 
+    pub fn write_to_own(&self, append: bool) -> Result<(), std::io::Error> {
+        let data = &self.data;
+        let mut file = OpenOptions::new()
+            .write(true)
+            .append(append)
+            .truncate(!append)
+            .create(true)
+            .open(&self.full_dir)
+            .unwrap();
+        writeln!(file, "{}", data)
+    }
+    pub fn write_to<'a>(
+        data: impl Display,
+        dir: impl Into<&'a str>,
+        append: bool,
+    ) -> Result<(), std::io::Error> {
+        let data = data;
+        let mut file = OpenOptions::new()
+            .write(true)
+            .append(append)
+            .truncate(!append)
+            .create(true)
+            .open(dir.into())?;
+        writeln!(file, "{}", data)
+    }
 }
